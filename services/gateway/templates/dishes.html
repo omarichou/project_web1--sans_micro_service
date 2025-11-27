@@ -1,0 +1,178 @@
+{% extends "layout.html" %}
+
+{% block title %}Menu - Restaurant Manager{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filter-section {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    }
+
+    .dish-card {
+        transition: all 0.3s ease;
+        border: none;
+        border-radius: 15px;
+        overflow: hidden;
+        height: 100%;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        animation: fadeIn 0.5s ease;
+    }
+
+    .dish-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    .dish-image {
+        height: 250px;
+        background: linear-gradient(135deg, #e74c3c, #f39c12);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 5rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .dish-image::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: rotate 20s linear infinite;
+    }
+
+    @keyframes rotate {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .price-tag {
+        background: var(--primary-color);
+        color: white;
+        padding: 0.5rem 1.5rem;
+        border-radius: 25px;
+        font-weight: bold;
+        font-size: 0.9rem;
+        display: inline-block;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+    }
+
+    .category-badge {
+        background: var(--accent-color);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 15px;
+        font-size: 0.85rem;
+    }
+
+    .filter-btn {
+        margin: 0.25rem;
+        border-radius: 20px;
+        transition: all 0.3s ease;
+    }
+
+    .filter-btn:hover {
+        transform: scale(1.05);
+    }
+
+    .filter-btn.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+
+    .quantity-input {
+        width: 80px;
+        border-radius: 20px;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">
+        <i class="fas fa-book-open"></i> Notre Menu
+    </h1>
+
+    <div class="filter-section">
+        <h5 class="mb-3"><i class="fas fa-filter"></i> Filtrer par catégorie</h5>
+        <div class="d-flex flex-wrap">
+            <a href="{{ url_for('dishes_view') }}" class="btn btn-outline-primary filter-btn {{ 'active' if not selected_category }}">
+                <i class="fas fa-list"></i> Tous
+            </a>
+            {% for category in categories %}
+            <a href="{{ url_for('dishes_view', category=category.id) }}"
+               class="btn btn-outline-primary filter-btn {{ 'active' if selected_category == category.id }}">
+                {{ category.name }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% if dishes %}
+    <div class="row g-4">
+        {% for dish in dishes %}
+        <div class="col-md-6 col-lg-4" style="animation-delay: {{ loop.index * 0.1 }}s">
+            <div class="card dish-card">
+                <div class="dish-image">
+                    <i class="fas fa-utensils"></i>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title mb-0">{{ dish.name }}</h5>
+                        {% if dish.category %}
+                        <span class="category-badge">{{ dish.category.name if dish.category is mapping else dish.category }}</span>
+                        {% endif %}
+                    </div>
+                    <p class="card-text text-muted">{{ dish.description }}</p>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <span class="price-tag">{{ "%.2f"|format(dish.price) }} DA</span>
+                        {% if session.get('user_id') %}
+                        <form method="POST" action="{{ url_for('add_to_cart', dish_id=dish.id) }}" class="d-flex align-items-center">
+                            <input type="number" name="quantity" value="1" min="1" max="10"
+                                   class="form-control form-control-sm quantity-input me-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-cart-plus"></i> Ajouter
+                            </button>
+                        </form>
+                        {% else %}
+                        <a href="{{ url_for('login') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-sign-in-alt"></i> Se connecter
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center">
+        <i class="fas fa-info-circle fa-3x mb-3 d-block"></i>
+        <h4>Aucun plat disponible</h4>
+        <p class="mb-0">{{ "Aucun plat dans cette catégorie." if selected_category else "Aucun plat n'a été ajouté pour le moment." }}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

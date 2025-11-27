@@ -1,0 +1,52 @@
+version: '3.8'
+services:
+  auth:
+    build: ./services/auth_service
+    container_name: auth
+    environment:
+      - PORT=5001
+    ports:
+      - "5001:5001"
+    networks:
+      - backend
+
+  dishes:
+    build: ./services/dishes_service
+    container_name: dishes
+    environment:
+      - PORT=5002
+    ports:
+      - "5002:5002"
+    networks:
+      - backend
+
+  orders:
+    build: ./services/orders_service
+    container_name: orders
+    environment:
+      - PORT=5003
+    ports:
+      - "5003:5003"
+    networks:
+      - backend
+
+  gateway:
+    build: ./services/gateway
+    container_name: gateway
+    environment:
+      - PORT=8000
+      - AUTH_URL=http://auth:5001
+      - DISHES_URL=http://dishes:5002
+      - ORDERS_URL=http://orders:5003
+    ports:
+      - "8000:8000"
+    depends_on:
+      - auth
+      - dishes
+      - orders
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge

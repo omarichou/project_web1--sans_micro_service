@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}Mes Commandes - Restaurant Manager{% endblock %}
+
+{% block extra_css %}
+<style>
+    .order-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .order-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .order-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        color: white;
+        padding: 1rem;
+    }
+
+    .order-details {
+        padding: 1.5rem;
+    }
+
+    .status-badge {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+    }
+
+    .status-en_attente { background-color: #ffd700; color: #000; }
+    .status-en_preparation { background-color: #ff7f50; color: #fff; }
+    .status-pret { background-color: #32cd32; color: #fff; }
+    .status-servi { background-color: #4169e1; color: #fff; }
+    .status-annule { background-color: #dc3545; color: #fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">Mes Commandes</h2>
+
+    {% if commandes %}
+        <div class="row">
+            {% for commande in commandes %}
+            <div class="col-lg-6">
+                <div class="order-card">
+                    <div class="order-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Commande #{{ commande.id }}</h5>
+                        <span class="status-badge status-{{ commande.status }}">{{ commande.status }}</span>
+                    </div>
+                    <div class="order-details">
+                        <p class="text-muted">
+                            <i class="fas fa-calendar-alt"></i>
+                            {{ commande.created_at.strftime('%d/%m/%Y %H:%M') }}
+                        </p>
+
+                        <h6 class="mb-3">Détails de la commande :</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Plat</th>
+                                        <th class="text-center">Quantité</th>
+                                        <th class="text-end">Prix</th>
+                                        <th class="text-end">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in commande.items %}
+                                    <tr>
+                                        <td>{{ item.dish_name }}</td>
+                                        <td class="text-center">{{ item.quantity }}</td>
+                                        <td class="text-end">{{ "%.2f"|format(item.price) }} DA</td>
+                                        <td class="text-end">{{ "%.2f"|format(item.price * item.quantity) }} DA</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="3" class="text-end"><strong>Total :</strong></td>
+                                        <td class="text-end"><strong>{{ "%.2f"|format(commande.total_amount) }} DA</strong></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        {% if commande.status == 'en_attente' %}
+                        <div class="alert alert-info mt-3" role="alert">
+                            <i class="fas fa-info-circle"></i>
+                            Votre commande est en cours de traitement. Nous vous informerons dès qu'elle sera prête.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+            <h4>Vous n'avez pas encore de commandes</h4>
+            <p class="text-muted">Découvrez notre menu et passez votre première commande !</p>
+            <a href="{{ url_for('dishes_view') }}" class="btn btn-primary">
+                <i class="fas fa-book-open"></i> Voir le menu
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+{% extends "base.html" %}
+
+{% block title %}Mes Commandes - Restaurant Manager{% endblock %}
+
+{% block extra_css %}
+<style>
+    .order-card {
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .order-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .order-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        color: white;
+        padding: 1rem;
+    }
+
+    .order-details {
+        padding: 1.5rem;
+    }
+
+    .status-badge {
+        font-size: 0.9rem;
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+    }
+
+    .status-en_attente { background-color: #ffd700; color: #000; }
+    .status-en_preparation { background-color: #ff7f50; color: #fff; }
+    .status-pret { background-color: #32cd32; color: #fff; }
+    .status-servi { background-color: #4169e1; color: #fff; }
+    .status-annule { background-color: #dc3545; color: #fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">Mes Commandes</h2>
+
+    {% if commandes %}
+        <div class="row">
+            {% for commande in commandes %}
+            <div class="col-lg-6">
+                <div class="order-card">
+                    <div class="order-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Commande #{{ commande.id }}</h5>
+                        <span class="status-badge status-{{ commande.status }}">{{ commande.status }}</span>
+                    </div>
+                    <div class="order-details">
+                        <p class="text-muted">
+                            <i class="fas fa-calendar-alt"></i>
+                            {{ commande.created_at.strftime('%d/%m/%Y %H:%M') }}
+                        </p>
+
+                        <h6 class="mb-3">Détails de la commande :</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Plat</th>
+                                        <th class="text-center">Quantité</th>
+                                        <th class="text-end">Prix</th>
+                                        <th class="text-end">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in commande.items %}
+                                    <tr>
+                                        <td>{{ item.dish.name }}</td>
+                                        <td class="text-center">{{ item.quantity }}</td>
+                                        <td class="text-end">{{ "%.2f"|format(item.price) }} DA</td>
+                                        <td class="text-end">{{ "%.2f"|format(item.price * item.quantity) }} DA</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="3" class="text-end"><strong>Total :</strong></td>
+                                        <td class="text-end"><strong>{{ "%.2f"|format(commande.total_amount) }} DA</strong></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        {% if commande.status == 'en_attente' %}
+                        <div class="alert alert-info mt-3" role="alert">
+                            <i class="fas fa-info-circle"></i>
+                            Votre commande est en cours de traitement. Nous vous informerons dès qu'elle sera prête.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+            <h4>Vous n'avez pas encore de commandes</h4>
+            <p class="text-muted">Découvrez notre menu et passez votre première commande !</p>
+            <a href="{{ url_for('dishes_view') }}" class="btn btn-primary">
+                <i class="fas fa-book-open"></i> Voir le menu
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

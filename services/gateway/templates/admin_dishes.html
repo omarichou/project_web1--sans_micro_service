@@ -1,0 +1,378 @@
+{% extends "layout.html" %}
+
+{% block title %}Gestion des Plats - Restaurant Manager{% endblock %}
+
+{% block extra_css %}
+<style>
+    .admin-header {
+        background: linear-gradient(135deg, var(--secondary-color), #34495e);
+        color: white;
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .form-card {
+        background: white;
+        border: none;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+        position: sticky;
+        top: 20px;
+    }
+
+    .dish-item {
+        background: white;
+        border: none;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        animation: slideIn 0.5s ease;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .dish-item:hover {
+        transform: translateX(10px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+
+    .dish-icon {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 2rem;
+    }
+
+    .price-display {
+        background: var(--primary-color);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="admin-header text-center">
+        <h2><i class="fas fa-pizza-slice"></i> Gestion des Plats</h2>
+        <p class="mb-0">Ajoutez et gérez les plats de votre restaurant</p>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="form-card">
+                <h4 class="mb-4"><i class="fas fa-plus-circle"></i> Nouveau Plat</h4>
+                <form method="POST" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else "")) }}
+                        {% if form.name.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.name.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control", rows=4) }}
+                        {% if form.description.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.description.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.price.label(class="form-label") }}
+                        {{ form.price(class="form-control" + (" is-invalid" if form.price.errors else "")) }}
+                        {% if form.price.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.price.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.cost.label(class="form-label") }}
+                        {{ form.cost(class="form-control" + (" is-invalid" if form.cost.errors else "")) }}
+                        {% if form.cost.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.cost.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.category_id.label(class="form-label") }}
+                        {{ form.category_id(class="form-select" + (" is-invalid" if form.category_id.errors else "")) }}
+                        {% if form.category_id.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.category_id.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    {{ form.submit(class="btn btn-primary w-100") }}
+                </form>
+
+                {% if not form.category_id.choices %}
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <small>Créez d'abord une catégorie dans <a href="{{ url_for('admin_categories') }}">la page catégories</a>.</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <h4 class="mb-4"><i class="fas fa-list"></i> Plats Existants</h4>
+
+            {% if dishes %}
+                {% for dish in dishes %}
+                <div class="dish-item" style="animation-delay: {{ loop.index * 0.1 }}s">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            <div class="dish-icon">
+                                <i class="fas fa-utensils"></i>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <h5 class="mb-1">{{ dish.name }}</h5>
+                            <p class="text-muted mb-1">{{ dish.description[:80] }}{% if dish.description|length > 80 %}...{% endif %}</p>
+                            {% if dish.category %}
+                            <small class="badge bg-secondary">
+                                <i class="fas fa-tag"></i> {{ dish.category.name if dish.category is mapping else dish.category }}
+                            </small>
+                            {% endif %}
+                        </div>
+                        <div class="col-auto">
+                            <span class="price-display">{{ "%.2f"|format(dish.price) }} DA</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-info text-center">
+                    <i class="fas fa-info-circle fa-3x mb-3 d-block"></i>
+                    <h5>Aucun plat</h5>
+                    <p class="mb-0">Ajoutez votre premier plat pour commencer.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% extends "layout.html" %}
+
+{% block title %}Gestion des Plats - Restaurant Manager{% endblock %}
+
+{% block extra_css %}
+<style>
+    .admin-header {
+        background: linear-gradient(135deg, var(--secondary-color), #34495e);
+        color: white;
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .form-card {
+        background: white;
+        border: none;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+        position: sticky;
+        top: 20px;
+    }
+
+    .dish-item {
+        background: white;
+        border: none;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        animation: slideIn 0.5s ease;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .dish-item:hover {
+        transform: translateX(10px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+
+    .dish-icon {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 2rem;
+    }
+
+    .price-display {
+        background: var(--primary-color);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="admin-header text-center">
+        <h2><i class="fas fa-pizza-slice"></i> Gestion des Plats</h2>
+        <p class="mb-0">Ajoutez et gérez les plats de votre restaurant</p>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="form-card">
+                <h4 class="mb-4"><i class="fas fa-plus-circle"></i> Nouveau Plat</h4>
+                <form method="POST" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else "")) }}
+                        {% if form.name.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.name.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control", rows=4) }}
+                        {% if form.description.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.description.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.price.label(class="form-label") }}
+                        {{ form.price(class="form-control" + (" is-invalid" if form.price.errors else "")) }}
+                        {% if form.price.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.price.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.cost.label(class="form-label") }}
+                        {{ form.cost(class="form-control" + (" is-invalid" if form.cost.errors else "")) }}
+                        {% if form.cost.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.cost.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.category_id.label(class="form-label") }}
+                        {{ form.category_id(class="form-select" + (" is-invalid" if form.category_id.errors else "")) }}
+                        {% if form.category_id.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.category_id.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    {{ form.submit(class="btn btn-primary w-100") }}
+                </form>
+
+                {% if not form.category_id.choices %}
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <small>Créez d'abord une catégorie dans <a href="{{ url_for('admin_categories') }}">la page catégories</a>.</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <h4 class="mb-4"><i class="fas fa-list"></i> Plats Existants</h4>
+
+            {% if dishes %}
+                {% for dish in dishes %}
+                <div class="dish-item" style="animation-delay: {{ loop.index * 0.1 }}s">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            <div class="dish-icon">
+                                <i class="fas fa-utensils"></i>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <h5 class="mb-1">{{ dish.name }}</h5>
+                            <p class="text-muted mb-1">{{ dish.description[:80] }}{% if dish.description|length > 80 %}...{% endif %}</p>
+                            {% if dish.category %}
+                            <small class="badge bg-secondary">
+                                <i class="fas fa-tag"></i> {{ dish.category.name }}
+                            </small>
+                            {% endif %}
+                        </div>
+                        <div class="col-auto">
+                            <span class="price-display">{{ "%.2f"|format(dish.price) }} DA</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-info text-center">
+                    <i class="fas fa-info-circle fa-3x mb-3 d-block"></i>
+                    <h5>Aucun plat</h5>
+                    <p class="mb-0">Ajoutez votre premier plat pour commencer.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

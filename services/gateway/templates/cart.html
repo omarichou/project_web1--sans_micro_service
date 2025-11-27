@@ -1,0 +1,228 @@
+{% extends "layout.html" %}
+
+{% block title %}Panier - Restaurant Manager{% endblock %}
+
+{% block extra_css %}
+<style>
+    .cart-container {
+        max-width: 900px;
+        margin: 2rem auto;
+    }
+
+    .cart-header {
+        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        color: white;
+        padding: 2rem;
+        border-radius: 15px 15px 0 0;
+        text-align: center;
+    }
+
+    .cart-item {
+        background: white;
+        border: none;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        animation: slideIn 0.5s ease;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .cart-item:hover {
+        transform: translateX(10px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+
+    .quantity-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .quantity-btn {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        border: none;
+        background: var(--primary-color);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    }
+
+    .quantity-btn:hover {
+        transform: scale(1.1);
+        background: var(--accent-color);
+    }
+
+    .quantity-display {
+        font-weight: bold;
+        font-size: 1.2rem;
+        min-width: 40px;
+        text-align: center;
+    }
+
+    .total-card {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border: none;
+        border-radius: 15px;
+        padding: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        position: sticky;
+        top: 20px;
+    }
+
+    .total-amount {
+        font-size: 2rem;
+        font-weight: bold;
+        color: var(--primary-color);
+    }
+
+    .checkout-btn {
+        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        border: none;
+        padding: 1rem;
+        font-size: 1.2rem;
+        font-weight: bold;
+        border-radius: 25px;
+        transition: all 0.3s ease;
+    }
+
+    .checkout-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    .empty-cart {
+        text-align: center;
+        padding: 4rem 2rem;
+        animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .empty-cart-icon {
+        font-size: 6rem;
+        color: var(--primary-color);
+        margin-bottom: 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cart-container">
+    {% if cart_items %}
+    <div class="card mb-4">
+        <div class="cart-header">
+            <h2><i class="fas fa-shopping-cart"></i> Mon Panier</h2>
+            <p class="mb-0">{{ cart_items|length }} article(s)</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            {% for item in cart_items %}
+            <div class="cart-item" style="animation-delay: {{ loop.index * 0.1 }}s">
+                <div class="row align-items-center">
+                    <div class="col-md-5">
+                        <h5 class="mb-1">{{ item.dish.name }}</h5>
+                        <p class="text-muted mb-0">{{ "%.2f"|format(item.dish.price) }} DA / unité</p>
+                    </div>
+                    <div class="col-md-4">
+                        <form method="POST" action="{{ url_for('update_cart', dish_id=item.dish.id) }}"
+                              class="quantity-controls">
+                            <input type="hidden" name="action" value="update">
+                            <button type="button" class="quantity-btn" onclick="decrementQuantity(this)">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                            <input type="number" name="quantity" value="{{ item.quantity }}"
+                                   min="0" max="10" class="quantity-display" readonly>
+                            <button type="button" class="quantity-btn" onclick="incrementQuantity(this)">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </form>
+                    </div>
+                    <div class="col-md-3 text-end">
+                        <h5 class="mb-0 text-primary">{{ "%.2f"|format(item.subtotal) }} DA</h5>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="col-lg-4">
+            <div class="total-card">
+                <h4 class="mb-4"><i class="fas fa-receipt"></i> Résumé</h4>
+                <hr>
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Sous-total:</span>
+                    <span class="fw-bold">{{ "%.2f"|format(total) }} DA</span>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Frais de livraison:</span>
+                    <span class="fw-bold">Gratuit</span>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="mb-0">Total:</h5>
+                    <div class="total-amount">{{ "%.2f"|format(total) }} DA</div>
+                </div>
+                <form method="POST" action="{{ url_for('checkout') }}">
+                    <button type="submit" class="btn btn-primary checkout-btn w-100">
+                        <i class="fas fa-check-circle"></i> Commander
+                    </button>
+                </form>
+                <a href="{{ url_for('dishes_view') }}" class="btn btn-outline-secondary w-100 mt-3">
+                    <i class="fas fa-arrow-left"></i> Continuer mes achats
+                </a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-cart">
+        <div class="empty-cart-icon">
+            <i class="fas fa-shopping-cart"></i>
+        </div>
+        <h2 class="mb-3">Votre panier est vide</h2>
+        <p class="text-muted mb-4">Découvrez nos délicieux plats et commencez votre commande!</p>
+    <a href="{{ url_for('dishes_view') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-book-open"></i> Voir le menu
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    function decrementQuantity(btn) {
+        const input = btn.parentElement.querySelector('input[name="quantity"]');
+        if (parseInt(input.value) > 0) {
+            input.value = parseInt(input.value) - 1;
+            btn.parentElement.submit();
+        }
+    }
+
+    function incrementQuantity(btn) {
+        const input = btn.parentElement.querySelector('input[name="quantity"]');
+        if (parseInt(input.value) < 10) {
+            input.value = parseInt(input.value) + 1;
+            btn.parentElement.submit();
+        }
+    }
+</script>
+{% endblock %}
