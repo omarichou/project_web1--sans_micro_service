@@ -1,0 +1,355 @@
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, SubmitField, TextAreaField, DecimalField, IntegerField, SelectField
+from wtforms.validators import DataRequired, Email, Length, EqualTo, NumberRange
+from werkzeug.security import generate_password_hash, check_password_hash
+import os
+from functools import wraps
+from datetime import datetime
+from flask_sqlalchemy import SQLAlchemy
+
+# SQLAlchemy setup (models)
+db = SQLAlchemy()
+
+
+class User(db.Model):
+        __tablename__ = 'users'
+        id = db.Column(db.Integer, primary_key=True)
+        username = db.Column(db.String(50), nullable=False)
+        email = db.Column(db.String(100), nullable=False, unique=True)
+        password = db.Column(db.String(200), nullable=False)
+        orders = db.relationship('Order', backref='user', lazy=True)
+
+        def __repr__(self):
+                return f"<User {self.username} ({self.email})>"
+
+
+class Category(db.Model):
+        __tablename__ = 'categories'
+        id = db.Column(db.Integer, primary_key=True)
+        name = db.Column(db.String(50), nullable=False, unique=True)
+        dishes = db.relationship('Dish', backref='category', lazy=True)
+
+        def __repr__(self):
+                return f"<Category {self.name}>"
+
+
+class Dish(db.Model):
+        __tablename__ = 'dishes'
+        id = db.Column(db.Integer, primary_key=True)
+        name = db.Column(db.String(100), nullable=False)
+        description = db.Column(db.Text, nullable=False)
+        price = db.Column(db.Numeric(10, 2), nullable=False)
+        category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
+
+        def __repr__(self):
+                return f"<Dish {self.name} - {self.price}>"
+
+
+class Order(db.Model):
+        __tablename__ = 'orders'
+        id = db.Column(db.Integer, primary_key=True)
+        user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+        status = db.Column(db.String(50), nullable=False)
+        total_amount = db.Column(db.Numeric(10, 2), nullable=False)
+        created_at = db.Column(db.DateTime, default=datetime.utcnow)
+        items = db.relationship('OrderItem', backref='order', lazy=True)
+
+        def __repr__(self):
+                return f"<Order {self.id} user={self.user_id} total={self.total_amount}>"
+
+
+class OrderItem(db.Model):
+        __tablename__ = 'order_items'
+        id = db.Column(db.Integer, primary_key=True)
+        order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False)
+        dish_id = db.Column(db.Integer, db.ForeignKey('dishes.id'), nullable=False)
+        quantity = db.Column(db.Integer, nullable=False)
+        price = db.Column(db.Numeric(10, 2), nullable=False)
+
+        def __repr__(self):
+                return f"<OrderItem order={self.order_id} dish={self.dish_id} qty={self.quantity}>"
+  
+  
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.urandom(24)
+# Configure SQLAlchemy (SQLite file database by default)
+app.config.setdefault('SQLALCHEMY_DATABASE_URI', 'sqlite:///app.db')
+app.config.setdefault('SQLALCHEMY_TRACK_MODIFICATIONS', False)
+
+# Initialize extensions
+db.init_app(app)
+
+# Données en mémoire (remplace la base de données)
+users = []         # {id, username, email, password}
+categories = []    # {id, name}
+dishes = []        # {id, name, description, price, category_id}
+orders = []        # {id, user_id, status, total_amount, items, created_at}
+next_user_id = 1
+next_category_id = 1
+next_dish_id = 1
+next_order_id = 1
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Veuillez vous connecter pour accéder à cette page.', 'warning')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+class RegistrationForm(FlaskForm):
+    username = StringField('Nom d\'utilisateur', validators=[DataRequired(), Length(min=3, max=50)])
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    password = PasswordField('Mot de passe', validators=[DataRequired(), Length(min=6)])
+    confirm_password = PasswordField('Confirmer le mot de passe', validators=[DataRequired(), EqualTo('password')])
+    submit = SubmitField('S\'inscrire')
+
+class LoginForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    password = PasswordField('Mot de passe', validators=[DataRequired()])
+    submit = SubmitField('Se connecter')
+
+class DishForm(FlaskForm):
+    name = StringField('Nom du plat', validators=[DataRequired(), Length(max=100)])
+    description = TextAreaField('Description', validators=[DataRequired()])
+    price = DecimalField('Prix (DA)', validators=[DataRequired(), NumberRange(min=0)])
+    category_id = SelectField('Catégorie', coerce=int, validators=[DataRequired()])
+    submit = SubmitField('Ajouter')
+
+class CategoryForm(FlaskForm):
+    name = StringField('Nom de la catégorie', validators=[DataRequired(), Length(max=50)])
+    submit = SubmitField('Créer')
+
+@app.route('/')
+def index():
+    # Lire catégories et plats depuis la mémoire
+    featured_dishes = dishes[:6]
+    return render_template('index.html', categories=categories, featured_dishes=featured_dishes)
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if 'user_id' in session:
+        return redirect(url_for('index'))
+
+    form = RegistrationForm()
+    global next_user_id
+    if form.validate_on_submit():
+        if any(u['email'] == form.email.data for u in users):
+            flash('Une erreur est survenue. Cet email est peut-être déjà utilisé.', 'danger')
+        else:
+            hashed_password = generate_password_hash(form.password.data)
+
+            user = User(username=form.username.data, email=form.email.data, password=hashed_password)
+            db.session.add(user)
+            db.session.commit()
+            print("Utilisateurs ajoutés! dans la bdd")
+            print("Utilisateurs:", User.query.all())
+            
+            
+            users.append({'id': next_user_id, 'username': form.username.data, 'email': form.email.data, 'password': hashed_password})
+          
+          
+            next_user_id += 1
+            
+            flash('Inscription réussie! Vous pouvez maintenant vous connecter.', 'success')
+            return redirect(url_for('login'))
+
+    return render_template('register.html', form=form)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if 'user_id' in session:
+        return redirect(url_for('index'))
+
+    form = LoginForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user and check_password_hash(user.password, form.password.data):
+            session['user_id'] = user.id
+            session['username'] = user.username
+            flash('Connexion réussie!', 'success')
+            return redirect(url_for('index'))
+        flash('Email ou mot de passe incorrect.', 'danger')
+
+    return render_template('login.html', form=form)
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('Vous avez été déconnecté.', 'info')
+    return redirect(url_for('index'))
+
+@app.route('/profile')
+@login_required
+def profile():
+    user = User.query.get_or_404(session['user_id'])
+    user_orders = Order.query.filter_by(user_id=session['user_id']).order_by(Order.created_at.desc()).all()
+    return render_template('profile.html', user=user, orders=user_orders)
+
+@app.route('/dishes')
+def dishes_view():
+    category_filter = request.args.get('category', type=int)
+    if category_filter:
+        filtered = [d for d in dishes if d['category_id'] == category_filter]
+    else:
+        filtered = dishes
+    return render_template('dishes.html', dishes=filtered, categories=categories, selected_category=category_filter)
+
+@app.route('/add_to_cart/<int:dish_id>', methods=['POST'])
+@login_required
+def add_to_cart(dish_id):
+    try:
+        quantity = int(request.form.get('quantity', 1))
+
+        if 'cart' not in session:
+            session['cart'] = {}
+
+        cart = session['cart']
+        dish_id_str = str(dish_id)
+
+        if dish_id_str in cart:
+            cart[dish_id_str] += quantity
+        else:
+            cart[dish_id_str] = quantity
+
+        session['cart'] = cart
+        flash('Plat ajouté au panier!', 'success')
+        return redirect(url_for('dishes_view'))
+    except Exception as e:
+        flash('Erreur lors de l\'ajout au panier.', 'danger')
+        return redirect(url_for('dishes_view'))
+
+@app.route('/cart')
+@login_required
+def cart():
+    if 'cart' not in session or not session['cart']:
+        return render_template('cart.html', cart_items=[], total=0)
+
+    try:
+        cart = session['cart']
+        cart_items = []
+        total = 0
+
+        for dish_id, quantity in cart.items():
+            dish = next((d for d in dishes if d['id'] == int(dish_id)), None)
+            if dish:
+                subtotal = float(dish['price']) * quantity
+                cart_items.append({
+                    'dish': dish,
+                    'quantity': quantity,
+                    'subtotal': subtotal
+                })
+                total += subtotal
+
+        return render_template('cart.html', cart_items=cart_items, total=total)
+    except Exception as e:
+        flash('Erreur lors du chargement du panier.', 'danger')
+        return render_template('cart.html', cart_items=[], total=0)
+
+@app.route('/update_cart/<int:dish_id>', methods=['POST'])
+@login_required
+def update_cart(dish_id):
+    try:
+        quantity = int(request.form.get('quantity', 0))
+
+        if 'cart' in session:
+            cart = session['cart']
+            dish_id_str = str(dish_id)
+
+            if quantity > 0:
+                cart[dish_id_str] = quantity
+            else:
+                cart.pop(dish_id_str, None)
+
+            session['cart'] = cart
+            flash('Panier mis à jour.', 'success')
+    except Exception as e:
+        flash('Erreur lors de la mise à jour du panier.', 'danger')
+
+    return redirect(url_for('cart'))
+
+@app.route('/checkout', methods=['POST'])
+@login_required
+def checkout():
+    if 'cart' not in session or not session['cart']:
+        flash('Votre panier est vide.', 'warning')
+        return redirect(url_for('dishes'))
+
+    try:
+        cart = session['cart']
+        total = 0
+
+        order_data = {
+            'user_id': session['user_id'],
+            'status': 'En attente',
+            'total_amount': 0
+        }
+
+        # créer commande en mémoire
+        global next_order_id
+        order_items = []
+        for dish_id, quantity in cart.items():
+            dish = next((d for d in dishes if d['id'] == int(dish_id)), None)
+            if dish:
+                price = float(dish['price'])
+                subtotal = price * quantity
+                total += subtotal
+                order_items.append({'dish_id': int(dish_id), 'quantity': quantity, 'price': price})
+
+        order = {'id': next_order_id, 'user_id': session['user_id'], 'status': 'En attente', 'total_amount': total, 'items': order_items, 'created_at': datetime.now().isoformat()}
+        orders.append(order)
+        next_order_id += 1
+
+        session.pop('cart', None)
+        flash('Commande passée avec succès!', 'success')
+        return redirect(url_for('profile'))
+    except Exception as e:
+        flash('Erreur lors de la commande.', 'danger')
+        return redirect(url_for('cart'))
+
+@app.route('/admin/categories', methods=['GET', 'POST'])
+@login_required
+def admin_categories():
+    form = CategoryForm()
+
+    global next_category_id
+    if form.validate_on_submit():
+        if any(c['name'].lower() == form.name.data.lower() for c in categories):
+            flash('Cette catégorie existe déjà.', 'danger')
+        else:
+            categories.append({'id': next_category_id, 'name': form.name.data})
+            next_category_id += 1
+            flash('Catégorie créée avec succès!', 'success')
+            return redirect(url_for('admin_categories'))
+
+    return render_template('admin_categories.html', form=form, categories=categories)
+
+@app.route('/admin/dishes', methods=['GET', 'POST'])
+@login_required
+def admin_dishes():
+    form = DishForm()
+
+    form = DishForm()
+    form.category_id.choices = [(c['id'], c['name']) for c in categories]
+    global next_dish_id
+    if form.validate_on_submit():
+        dishes.append({'id': next_dish_id, 'name': form.name.data, 'description': form.description.data, 'price': float(form.price.data), 'category_id': form.category_id.data})
+        next_dish_id += 1
+        flash('Plat ajouté avec succès!', 'success')
+        return redirect(url_for('admin_dishes'))
+
+    return render_template('admin_dishes.html', form=form, dishes=dishes)
+
+if __name__ == '__main__':
+    # Create database tables if they don't exist
+    with app.app_context():
+        try:
+            db.create_all()
+        except Exception:
+            # If database initialization fails, continue — app still uses in-memory structures
+            pass
+
+    app.run(debug=True)

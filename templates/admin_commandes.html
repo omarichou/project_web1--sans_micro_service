@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Gestion des Commandes{% endblock %}
+
+{% block extra_css %}
+<style>
+    .commande-card {
+        transition: all 0.3s ease;
+    }
+    .commande-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">Gestion des Commandes</h2>
+
+    <div class="row">
+        {% for commande in commandes %}
+        <div class="col-md-6 mb-4">
+            <div class="card commande-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Commande #{{ commande.id_commande }}</h5>
+                    <span class="badge status-{{ commande.statut }}">{{ commande.statut }}</span>
+                </div>
+                <div class="card-body">
+                    <p><strong>Client:</strong> {{ commande.client.nom }}</p>
+                    <p><strong>Date:</strong> {{ commande.date.strftime('%d/%m/%Y %H:%M') }}</p>
+                    
+                    <h6 class="mb-3">Détails de la commande:</h6>
+                    <ul class="list-group mb-3">
+                        {% for detail in commande.details %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ detail.plat.nom_plat }}
+                            <span class="badge bg-primary rounded-pill">× {{ detail.quantite }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="btn-group">
+                            {% if commande.statut == 'en_attente' %}
+                            <button class="btn btn-sm btn-success update-status" data-commande-id="{{ commande.id_commande }}" data-status="en_preparation">
+                                <i class="fas fa-utensils"></i> Préparer
+                            </button>
+                            {% elif commande.statut == 'en_preparation' %}
+                            <button class="btn btn-sm btn-info update-status" data-commande-id="{{ commande.id_commande }}" data-status="pret">
+                                <i class="fas fa-check"></i> Marquer comme prêt
+                            </button>
+                            {% elif commande.statut == 'pret' %}
+                            <button class="btn btn-sm btn-primary update-status" data-commande-id="{{ commande.id_commande }}" data-status="servi">
+                                <i class="fas fa-hand-holding"></i> Servir
+                            </button>
+                            {% endif %}
+                            {% if commande.statut not in ['servi', 'annule'] %}
+                            <button class="btn btn-sm btn-danger update-status" data-commande-id="{{ commande.id_commande }}" data-status="annule">
+                                <i class="fas fa-times"></i> Annuler
+                            </button>
+                            {% endif %}
+                        </div>
+                        <a href="#" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#factureModal{{ commande.id_commande }}">
+                            <i class="fas fa-receipt"></i> Voir facture
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Facture -->
+        <div class="modal fade" id="factureModal{{ commande.id_commande }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Facture #{{ commande.facture.id_facture }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Plat</th>
+                                        <th>Qté</th>
+                                        <th class="text-end">Prix</th>
+                                        <th class="text-end">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for detail in commande.details %}
+                                    <tr>
+                                        <td>{{ detail.plat.nom_plat }}</td>
+                                        <td>{{ detail.quantite }}</td>
+                                        <td class="text-end">{{ "%.2f"|format(detail.plat.prix_vente) }} DA</td>
+                                        <td class="text-end">{{ "%.2f"|format(detail.plat.prix_vente * detail.quantite) }} DA</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="3" class="text-end"><strong>Sous-total:</strong></td>
+                                        <td class="text-end">{{ "%.2f"|format(commande.facture.montant) }} DA</td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="3" class="text-end"><strong>TVA (19%):</strong></td>
+                                        <td class="text-end">{{ "%.2f"|format(commande.facture.taxe) }} DA</td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="3" class="text-end"><strong>Pourboire:</strong></td>
+                                        <td class="text-end">{{ "%.2f"|format(commande.facture.pourboire) }} DA</td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                                        <td class="text-end"><strong>{{ "%.2f"|format(commande.facture.montant + commande.facture.taxe + commande.facture.pourboire) }} DA</strong></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.update-status').forEach(button => {
+    button.addEventListener('click', function() {
+        const commandeId = this.dataset.commandeId;
+        const newStatus = this.dataset.status;
+        
+        fetch(`/api/commande/${commandeId}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ status: newStatus })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                location.reload();
+            } else {
+                alert('Une erreur est survenue');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Une erreur est survenue');
+        });
+    });
+});
+</script>
+{% endblock %}

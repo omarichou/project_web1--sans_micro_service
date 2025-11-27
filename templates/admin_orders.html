@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+
+{% block title %}Gestion des commandes{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">Gestion des commandes</h2>
+
+    {% if orders %}
+    <div class="list-group">
+        {% for order in orders %}
+        <div class="list-group-item mb-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <h5>Commande #{{ order.id }} - <small class="text-muted">Client: {{ order.user.username if order.user else 'N/A' }}</small></h5>
+                    <p class="mb-1">Passée le {{ order.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                    <p class="mb-1">Total: <strong>{{ "%.2f"|format(order.total_amount) }} DA</strong></p>
+                    <p class="mb-1">Articles:
+                        <ul>
+                            {% for item in order.items %}
+                            <li>{{ item.dish.name if item.dish else 'Plat' }} × {{ item.quantity }} — {{ "%.2f"|format(item.price * item.quantity) }} DA</li>
+                            {% endfor %}
+                        </ul>
+                    </p>
+                </div>
+                <div>
+                    <form method="post" class="d-flex flex-column align-items-end">
+                        <input type="hidden" name="order_id" value="{{ order.id }}">
+                        <select name="status" class="form-select mb-2">
+                            {% set opts = ['en attente', 'en préparation', 'prêt', 'servi', 'payé', 'annulé'] %}
+                            {% for s in opts %}
+                            <option value="{{ s }}" {% if s == order.status %}selected{% endif %}>{{ s }}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="btn btn-primary btn-sm" type="submit">Mettre à jour</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">Aucune commande pour le moment.</div>
+    {% endif %}
+</div>
+{% endblock %}
